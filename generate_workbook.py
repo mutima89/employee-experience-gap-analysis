@@ -102,6 +102,26 @@ header_border = Border(
 center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
 left_align   = Alignment(horizontal='left',   vertical='center', wrap_text=True)
 
+# Dashboard-specific styles
+section_fill  = PatternFill(start_color="F4F4F4", end_color="F4F4F4", fill_type='solid')
+kpi_bg_fill   = PatternFill(start_color=WHITE, end_color=WHITE, fill_type='solid')
+kpi_label_font= Font(name='Calibri', bold=True, color=DARK_GRAY, size=8)
+kpi_value2_fnt= Font(name='Calibri', bold=True, color=WHITE, size=20)
+kpi_sub_font  = Font(name='Calibri', color="8C8C8C", size=8)
+section_font  = Font(name='Calibri', bold=True, color=NAVY, size=11)
+accent_border = Border(
+    left=Side(style='medium', color=BLUE),   # colored left accent
+    top=Side(style='thin', color=MID_GRAY),
+    bottom=Side(style='thin', color=MID_GRAY),
+    right=Side(style='thin', color=MID_GRAY)
+)
+kpi_card_border = Border(
+    left=Side(style='thin', color="D0D0D0"),
+    right=Side(style='thin', color="D0D0D0"),
+    top=Side(style='thin', color="D0D0D0"),
+    bottom=Side(style='thin', color="D0D0D0")
+)
+
 # Dimension Definitions
 DIMENSIONS = [
     {
@@ -663,87 +683,151 @@ ws_score.freeze_panes = f'F{b_header_row + 1}'
 print("[OK] Sheet 3: Scoring Engine -- complete")
 
 
-# ===== SHEET 4: DASHBOARD ==================================
+# =========================================================================
+# SHEET 4: DASHBOARD — Executive Overview
+# =========================================================================
+# Design: Card-based KPI row, then stacked sections: Radar → Heat Map
+# → Risk Matrix → Department Comparison. Clean whitespace between sections.
+# No Location filter (unused) — removed to reduce visual noise.
 ws_dash = wb.create_sheet("Dashboard")
 ws_dash.sheet_properties.tabColor = BLUE
+ws_dash.sheet_view.showGridLines = False
 
+# Column widths — generous across all 18 cols
+col_widths = {get_column_letter(i): 17 for i in range(1, 19)}
+col_widths['A'] = 24              # dimension names need more room
+set_col_widths(ws_dash, col_widths)
+
+# ── TITLE BANNER ────────────────────────────────────────────────
 ws_dash.merge_cells('A1:R1')
-ws_dash['A1'].value = PROJECT_TITLE
-ws_dash['A1'].font = title_font
-ws_dash['A1'].fill = navy_fill
-ws_dash['A1'].alignment = Alignment(horizontal='left', vertical='center')
-for c in range(1, 19):
+c1 = ws_dash['A1']
+c1.value = PROJECT_TITLE
+c1.font = title_font
+c1.fill = navy_fill
+c1.alignment = Alignment(horizontal='left', vertical='center')
+for c in range(2, 19):
     ws_dash.cell(row=1, column=c).fill = navy_fill
-ws_dash.row_dimensions[1].height = 36
+ws_dash.row_dimensions[1].height = 38
 
 ws_dash.merge_cells('A2:R2')
-ws_dash['A2'].value = "Executive Dashboard -- Key Metrics & Visual Analysis"
-ws_dash['A2'].font = h2_font
-ws_dash['A2'].fill = lt_blue_fill
-for c in range(1, 19):
-    ws_dash.cell(row=2, column=c).fill = lt_blue_fill
-ws_dash.row_dimensions[2].height = 24
+c2 = ws_dash['A2']
+c2.value = "Executive Dashboard  —  Key Metrics  •  Visual Analysis  •  Department View"
+c2.font = Font(name='Calibri', bold=False, color=WHITE, size=10)
+c2.fill = blue_fill
+c2.alignment = Alignment(horizontal='left', vertical='center')
+for c in range(2, 19):
+    ws_dash.cell(row=2, column=c).fill = blue_fill
+ws_dash.row_dimensions[2].height = 22
 
-# KPI cards
-kpi_defs = [
-    ("Overall Experience Index", f"=ROUND('Scoring Engine'!B11,1)", GREEN),
-    ("Retention Risk",           f"=ROUND('Scoring Engine'!B12,1)", BLUE),
-    ("Engagement Score",         f"=ROUND(('Scoring Engine'!E5+'Scoring Engine'!E6+'Scoring Engine'!E7+'Scoring Engine'!E8+'Scoring Engine'!E9+'Scoring Engine'!E10)/6,1)", TEAL),
-    ("Largest Gap",              "INDEX('Scoring Engine'!A5:A10,MATCH(MAX('Scoring Engine'!D5:D10),'Scoring Engine'!D5:D10,0))", ORANGE),
-    ("Strongest Dimension",      "INDEX('Scoring Engine'!A5:A10,MATCH(MAX('Scoring Engine'!E5:E10),'Scoring Engine'!E5:E10,0))", GREEN),
-    ("Respondents",              f"=COUNTA('Raw Data'!A4:A{4+NUM_RESPONDENTS-1})", NAVY),
+# ── KPI CARDS  (Rows 4–7) ──────────────────────────────────────
+# Each card: row 4 = accent bar + label, row 5 = value, row 6 = subtitle
+KPI_DEFS = [
+    ("Overall\nExperience Index", f"=ROUND('Scoring Engine'!B11,1)",
+     GREEN, "Weighted avg of 6 dimensions"),
+    ("Retention\nRisk Score", f"=ROUND('Scoring Engine'!B12,1)",
+     BLUE, "Higher = greater flight risk"),
+    ("Engagement\nScore", "=ROUND(('Scoring Engine'!E5+'Scoring Engine'!E6+"
+     "'Scoring Engine'!E7+'Scoring Engine'!E8+'Scoring Engine'!E9+'Scoring Engine'!E10)/6,1)",
+     TEAL, "Avg health across dimensions"),
+    ("Largest\nGap", "=INDEX('Scoring Engine'!A5:A10,MATCH(MAX('Scoring Engine'!D5:D10),"
+     "'Scoring Engine'!D5:D10,0))", ORANGE, "Dimension needing attention"),
+    ("Strongest\nDimension", "=INDEX('Scoring Engine'!A5:A10,MATCH(MAX('Scoring Engine'!E5:E10),"
+     "'Scoring Engine'!E5:E10,0))", GREEN, "Top-performing dimension"),
+    ("Total\nRespondents", "=COUNTA('Raw Data'!A4:A{})".format(4+NUM_RESPONDENTS-1),
+     NAVY, f"Sample of {NUM_RESPONDENTS}"),
 ]
+KPI_ACCENT_HEIGHT = 26
 
-for idx, (label, formula, fill_color) in enumerate(kpi_defs):
-    col_start = 1 + idx * 3
-    col_end = col_start + 2
+# Row 3 is a thin spacer before KPI cards
+ws_dash.row_dimensions[3].height = 6
 
-    ws_dash.merge_cells(start_row=4, start_column=col_start,
-                        end_row=6, end_column=col_end)
-    cell = ws_dash.cell(row=4, column=col_start)
+for kpi_idx, (label, formula, accent_color, subtitle) in enumerate(KPI_DEFS):
+    col = 1 + kpi_idx * 3   # 1,4,7,10,13,16
+    accent_fill = PatternFill(start_color=accent_color, end_color=accent_color, fill_type='solid')
+    light_accent = PatternFill(start_color="FAFAFA", end_color="FAFAFA", fill_type='solid')
+    border_sides = Border(
+        left=Side(style='thin', color="E0E0E0"),
+        right=Side(style='thin', color="E0E0E0"),
+        top=Side(style='thin', color="E0E0E0"),
+        bottom=Side(style='thin', color="E0E0E0"),
+    )
 
-    fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type='solid')
+    # Row 4 — Accent bar with label (colored background, white text)
+    ws_dash.merge_cells(start_row=4, start_column=col, end_row=4, end_column=col+2)
+    ac = ws_dash.cell(row=4, column=col)
+    ac.value = label
+    ac.font = Font(name='Calibri', bold=True, color=WHITE, size=9)
+    ac.fill = accent_fill
+    ac.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    for cc in range(col, col+3):
+        ws_dash.cell(row=4, column=cc).fill = accent_fill
+        ws_dash.cell(row=4, column=cc).border = border_sides
+    ws_dash.row_dimensions[4].height = KPI_ACCENT_HEIGHT
 
-    cell.value = formula
-    cell.font = kpi_value_font
-    cell.fill = fill
-    cell.alignment = Alignment(horizontal='center', vertical='center')
-    cell.border = Border(left=Side(style='medium', color=WHITE),
-                          right=Side(style='medium', color=WHITE),
-                          top=Side(style='medium', color=WHITE),
-                          bottom=Side(style='medium', color=WHITE))
+    # Row 5 — Big value (white bg, colored text matching accent)
+    ws_dash.merge_cells(start_row=5, start_column=col, end_row=5, end_column=col+2)
+    vc = ws_dash.cell(row=5, column=col)
+    vc.value = formula
+    vc.font = Font(name='Calibri', bold=True, color=accent_color, size=24)
+    vc.fill = white_fill
+    vc.alignment = Alignment(horizontal='center', vertical='center')
+    vc.border = border_sides
+    for cc in range(col, col+3):
+        ws_dash.cell(row=5, column=cc).fill = white_fill
+        ws_dash.cell(row=5, column=cc).border = border_sides
+    ws_dash.row_dimensions[5].height = 38
 
-    ws_dash.merge_cells(start_row=3, start_column=col_start,
-                        end_row=3, end_column=col_end)
-    label_cell = ws_dash.cell(row=3, column=col_start)
-    label_cell.value = label
-    label_cell.font = Font(name='Calibri', bold=True, size=9, color=fill_color)
-    label_cell.fill = PatternFill(start_color="F8F9FA", end_color="F8F9FA", fill_type='solid')
-    label_cell.alignment = Alignment(horizontal='center', vertical='center')
+    # Row 6 — Subtitle text
+    ws_dash.merge_cells(start_row=6, start_column=col, end_row=6, end_column=col+2)
+    sc = ws_dash.cell(row=6, column=col)
+    sc.value = subtitle
+    sc.font = Font(name='Calibri', color="999999", size=8, italic=True)
+    sc.fill = white_fill
+    sc.alignment = Alignment(horizontal='center', vertical='center')
+    for cc in range(col, col+3):
+        ws_dash.cell(row=6, column=cc).fill = white_fill
+        ws_dash.cell(row=6, column=cc).border = border_sides
+        ws_dash.cell(row=6, column=cc).font = Font(name='Calibri', color="999999", size=8, italic=True)
+    ws_dash.row_dimensions[6].height = 20
 
-    ws_dash.row_dimensions[3].height = 18
-    ws_dash.row_dimensions[4].height = 28
-    ws_dash.row_dimensions[5].height = 28
-    ws_dash.row_dimensions[6].height = 28
+# Row 7 — spacer
+ws_dash.row_dimensions[7].height = 8
 
-for i in range(1, 19):
-    ws_dash.column_dimensions[get_column_letter(i)].width = 16
 
-for r in [3, 4, 5, 6]:
+# ── SECTION DIVIDER HELPER ──────────────────────────────────────
+def add_section_divider(ws, row, title, accent_color=BLUE):
+    """Render a full-width section divider with left accent bar."""
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=18)
     for c in range(1, 19):
-        cell = ws_dash.cell(row=r, column=c)
-        if not cell.fill or str(cell.fill.start_color.rgb) == '00000000':
-            cell.fill = PatternFill(start_color="F8F9FA", end_color="F8F9FA", fill_type='solid')
+        cell = ws.cell(row=row, column=c)
+        cell.fill = section_fill
+        cell.border = thin_border
+    # Left accent via conditional — use column A with colored left border
+    ac = ws.cell(row=row, column=1)
+    ac.value = title
+    ac.font = Font(name='Calibri', bold=True, color=NAVY, size=11)
+    ac.alignment = Alignment(horizontal='left', vertical='center')
+    ac.border = Border(left=Side(style='medium', color=accent_color),
+                       top=Side(style='thin', color=MID_GRAY),
+                       bottom=Side(style='thin', color=MID_GRAY),
+                       right=Side(style='thin', color=MID_GRAY))
+    ws.row_dimensions[row].height = 28
 
-# Radar Chart
-ws_dash.cell(row=8, column=1, value="Experience Profile -- Radar Chart").font = h2_font
-ws_dash.merge_cells('A8:F8')
 
-radar_headers = ["Dimension", "Promise Avg", "Experience Avg"]
-for c, h in enumerate(radar_headers, 1):
-    ws_dash.cell(row=9, column=c, value=h)
-apply_header_style(ws_dash, 9, 3)
+# ═══════════════════════════════════════════════════════════════════
+# SECTION 1: Experience Profile  (Radar Chart)
+# ═══════════════════════════════════════════════════════════════════
+add_section_divider(ws_dash, 8, "1  Experience Profile  —  Promise vs Actual", BLUE)
 
+radar_col_group = 6  # use cols A–F for radar data, chart goes to the right
+
+# Headers
+radar_hdr = 9
+for ci, h in enumerate(["Dimension", "Promise Avg", "Experience Avg"], 1):
+    ws_dash.cell(row=radar_hdr, column=ci, value=h)
+apply_header_style(ws_dash, radar_hdr, 3)
+
+# Data rows
 for d_idx, dim in enumerate(DIMENSIONS):
     row = 10 + d_idx
     ws_dash.cell(row=row, column=1, value=dim["name"])
@@ -752,11 +836,15 @@ for d_idx, dim in enumerate(DIMENSIONS):
     ws_dash.cell(row=row, column=2).number_format = '0.00'
     ws_dash.cell(row=row, column=3, value=f"='Scoring Engine'!C{se_row}")
     ws_dash.cell(row=row, column=3).number_format = '0.00'
-    for c in range(1, 4):
-        ws_dash.cell(row=row, column=c).font = data_font
-        ws_dash.cell(row=row, column=c).alignment = center_align
-        ws_dash.cell(row=row, column=c).border = thin_border
+    for ci in range(1, 4):
+        cell = ws_dash.cell(row=row, column=ci)
+        cell.font = data_font
+        cell.alignment = center_align
+        cell.border = thin_border
+        if d_idx % 2 == 1:
+            cell.fill = lt_gray_fill
 
+# Radar chart — placed to the right of the data table
 radar = RadarChart()
 radar.type = "filled"
 radar.style = 26
@@ -765,86 +853,100 @@ radar.width = 18
 radar.height = 14
 
 cats = Reference(ws_dash, min_col=1, min_row=10, max_row=15)
-
-p_data = Reference(ws_dash, min_col=2, min_row=9, max_row=15)
+p_data = Reference(ws_dash, min_col=2, min_row=radar_hdr, max_row=15)
 radar.add_data(p_data, titles_from_data=True)
 radar.set_categories(cats)
-
-e_data = Reference(ws_dash, min_col=3, min_row=9, max_row=15)
+e_data = Reference(ws_dash, min_col=3, min_row=radar_hdr, max_row=15)
 radar.add_data(e_data, titles_from_data=True)
 
 s0 = radar.series[0]
 s0.graphicalProperties.solidFill = "2E75B6"
 s0.graphicalProperties.line.solidFill = "1F4E79"
-
 s1 = radar.series[1]
 s1.graphicalProperties.solidFill = "ED7D31"
 s1.graphicalProperties.line.solidFill = "C00000"
-
 radar.legend.position = 'b'
-ws_dash.add_chart(radar, "E8")
+ws_dash.add_chart(radar, "D9")   # starts at col D, next to the data table
 
-# Heat Map
-heat_start_row = 9
-heat_start_col = 7
+# Spacer
+ws_dash.row_dimensions[16].height = 8
 
-ws_dash.cell(row=8, column=heat_start_col,
-             value="Gap Analysis Heat Map -- All Items").font = h2_font
-ws_dash.merge_cells(start_row=8, start_column=heat_start_col,
-                    end_row=8, end_column=heat_start_col + 5)
 
-heat_headers = ["Dimension"]
-for item_n in range(1, 6):
-    heat_headers.append(f"Item {item_n}")
-for c, h in enumerate(heat_headers, heat_start_col):
-    ws_dash.cell(row=heat_start_row, column=c, value=h)
-apply_header_style(ws_dash, heat_start_row, heat_start_col + 5)
+# ═══════════════════════════════════════════════════════════════════
+# SECTION 2: Gap Heat Map
+# ═══════════════════════════════════════════════════════════════════
+add_section_divider(ws_dash, 17, "2  Gap Analysis Heat Map  —  All 30 Items by Dimension", BLUE)
+
+hm_start_row = 18   # header row
+hm_start_col = 1    # starts at column A
+
+hm_headers = ["Dimension"]
+for n in range(1, 6):
+    hm_headers.append(f"Item {n}")
+for ci, h in enumerate(hm_headers, hm_start_col):
+    ws_dash.cell(row=hm_start_row, column=ci, value=h)
+apply_header_style(ws_dash, hm_start_row, hm_start_col + 5)
 
 for d_idx, dim in enumerate(DIMENSIONS):
-    row = heat_start_row + 1 + d_idx
-    ws_dash.cell(row=row, column=heat_start_col, value=dim["name"])
-    ws_dash.cell(row=row, column=heat_start_col).font = bold_data_font
+    row = hm_start_row + 1 + d_idx
+    ws_dash.cell(row=row, column=hm_start_col, value=dim["name"])
+    ws_dash.cell(row=row, column=hm_start_col).font = bold_data_font
+    ws_dash.cell(row=row, column=hm_start_col).alignment = center_align
+    ws_dash.cell(row=row, column=hm_start_col).border = thin_border
+    if d_idx % 2 == 1:
+        ws_dash.cell(row=row, column=hm_start_col).fill = lt_gray_fill
 
     for item_idx in range(5):
         global_i = d_idx * 5 + item_idx
         p_col = raw_data_col_letter(global_i, True)
         e_col = raw_data_col_letter(global_i, False)
-        col = heat_start_col + 1 + item_idx
-        ws_dash.cell(row=row, column=col,
-                     value=f"=AVERAGE('Raw Data'!{p_col}4:{p_col}{4+NUM_RESPONDENTS-1})"
-                           f"-AVERAGE('Raw Data'!{e_col}4:{e_col}{4+NUM_RESPONDENTS-1})")
-        ws_dash.cell(row=row, column=col).number_format = '0.00'
-        ws_dash.cell(row=row, column=col).font = data_font
-        ws_dash.cell(row=row, column=col).alignment = center_align
-        ws_dash.cell(row=row, column=col).border = thin_border
+        col = hm_start_col + 1 + item_idx
+        cell = ws_dash.cell(row=row, column=col)
+        cell.value = (f"=AVERAGE('Raw Data'!{p_col}4:{p_col}{4+NUM_RESPONDENTS-1})"
+                      f"-AVERAGE('Raw Data'!{e_col}4:{e_col}{4+NUM_RESPONDENTS-1})")
+        cell.number_format = '0.00'
+        cell.font = data_font
+        cell.alignment = center_align
+        cell.border = thin_border
+        if d_idx % 2 == 1:
+            cell.fill = lt_gray_fill
 
-hs_col = get_column_letter(heat_start_col + 1)
-he_col = get_column_letter(heat_start_col + 5)
+# Color scale: green → amber → red
+hm_data_start = hm_start_row + 1
+hm_data_end = hm_start_row + 6
+hs_c = get_column_letter(hm_start_col + 1)
+he_c = get_column_letter(hm_start_col + 5)
 ws_dash.conditional_formatting.add(
-    f'{hs_col}{heat_start_row+1}:{he_col}{heat_start_row+6}',
-    ColorScaleRule(
-        start_type='num', start_value=0,   start_color='00B050',
-        mid_type='num',   mid_value=1.5,    mid_color='FFC000',
-        end_type='num',   end_value=3.5,    end_color='C00000'
-    )
+    f'{hs_c}{hm_data_start}:{he_c}{hm_data_end}',
+    ColorScaleRule(start_type='num', start_value=0,        start_color='00B050',
+                   mid_type='num',   mid_value=1.5,         mid_color='FFC000',
+                   end_type='num',   end_value=3.5,         end_color='C00000')
 )
 
-legend_row = heat_start_row + 8
-ws_dash.merge_cells(start_row=legend_row, start_column=heat_start_col,
-                    end_row=legend_row, end_column=heat_start_col+5)
-ws_dash.cell(row=legend_row, column=heat_start_col,
-    value="<= 1.0 Healthy  |  1.0-2.0 Watch  |  2.0-3.0 Concern  |  >= 3.0 High Risk").font = small_font
+# Legend row
+legend_row = hm_data_end + 1
+ws_dash.merge_cells(start_row=legend_row, start_column=hm_start_col,
+                    end_row=legend_row, end_column=hm_start_col+5)
+leg = ws_dash.cell(row=legend_row, column=hm_start_col)
+leg.value = "< 1.0 Healthy   |   1.0 - 2.0 Watch   |   2.0 - 3.0 Concern   |   > 3.0 High Risk"
+leg.font = small_font
+leg.alignment = Alignment(horizontal='center', vertical='center')
+ws_dash.row_dimensions[legend_row].height = 22
 
-# Risk Matrix
-risk_matrix_row = 18
-ws_dash.cell(row=risk_matrix_row, column=1,
-             value="Risk Matrix -- Gap vs Importance").font = h2_font
-ws_dash.merge_cells(f'A{risk_matrix_row}:F{risk_matrix_row}')
+# Spacer
+ws_dash.row_dimensions[legend_row + 1].height = 8
 
-rm_start = risk_matrix_row + 1
+
+# ═══════════════════════════════════════════════════════════════════
+# SECTION 3: Risk Matrix
+# ═══════════════════════════════════════════════════════════════════
+risk_divider = legend_row + 2
+add_section_divider(ws_dash, risk_divider, "3  Risk Matrix  —  Gap vs Importance by Dimension", BLUE)
+
+rm_start = risk_divider + 1
 rm_headers = ["Dimension", "Gap Size", "Weight", "Risk Score"]
-for c, h in enumerate(rm_headers, 1):
-    ws_dash.cell(row=rm_start, column=c, value=h)
+for ci, h in enumerate(rm_headers, 1):
+    ws_dash.cell(row=rm_start, column=ci, value=h)
 apply_header_style(ws_dash, rm_start, 4)
 
 for d_idx, dim in enumerate(DIMENSIONS):
@@ -855,176 +957,153 @@ for d_idx, dim in enumerate(DIMENSIONS):
     ws_dash.cell(row=row, column=2).number_format = '0.00'
     ws_dash.cell(row=row, column=3, value=dim["weight"])
     ws_dash.cell(row=row, column=3).number_format = '0%'
-    ws_dash.cell(row=row, column=4,
-                 value=f"=B{row}*C{row}*100")
+    ws_dash.cell(row=row, column=4, value=f"=B{row}*C{row}*100")
     ws_dash.cell(row=row, column=4).number_format = '0.0'
-    for c in range(1, 5):
-        ws_dash.cell(row=row, column=c).font = data_font
-        ws_dash.cell(row=row, column=c).alignment = center_align
-        ws_dash.cell(row=row, column=c).border = thin_border
+    for ci in range(1, 5):
+        cell = ws_dash.cell(row=row, column=ci)
+        cell.font = data_font
+        cell.alignment = center_align
+        cell.border = thin_border
+        if d_idx % 2 == 1:
+            cell.fill = lt_gray_fill
 
+# Scatter chart — to the right of data
 rm_chart = ScatterChart()
-rm_chart.title = "Risk Matrix -- Priority Quadrants"
+rm_chart.title = "Risk Matrix — Priority Quadrants"
 rm_chart.x_axis.title = "Gap Size"
-rm_chart.y_axis.title = "Weight x 100"
-rm_chart.width = 16
+rm_chart.y_axis.title = "Weight × 100"
+rm_chart.width = 18
 rm_chart.height = 12
 rm_chart.x_axis.scaling.min = 0
 rm_chart.x_axis.scaling.max = 5
 rm_chart.y_axis.scaling.min = 0
 rm_chart.y_axis.scaling.max = 25
 
+# Y values (weight * 100, static) in col E
 for d_idx, dim in enumerate(DIMENSIONS):
     row = rm_start + 1 + d_idx
-    ws_dash.cell(row=row, column=5, value=dim["weight"] * 100)
-    ws_dash.cell(row=row, column=5).number_format = '0.0'
+    ws_dash.cell(row=row, column=5, value=dim["weight"] * 100).number_format = '0.0'
+
+# Labels in col F (dimension names from col A)
+for d_idx in range(6):
+    row = rm_start + 1 + d_idx
+    ws_dash.cell(row=row, column=6, value=f"=A{row}").font = small_font
 
 y_vals = Reference(ws_dash, min_col=5, min_row=rm_start+1, max_row=rm_start+6)
 x_vals = Reference(ws_dash, min_col=2, min_row=rm_start+1, max_row=rm_start+6)
-
-ws_dash.cell(row=rm_start+1, column=6, value=f"=A{rm_start+1}")
-ws_dash.cell(row=rm_start+2, column=6, value=f"=A{rm_start+2}")
-ws_dash.cell(row=rm_start+3, column=6, value=f"=A{rm_start+3}")
-ws_dash.cell(row=rm_start+4, column=6, value=f"=A{rm_start+4}")
-ws_dash.cell(row=rm_start+5, column=6, value=f"=A{rm_start+5}")
-ws_dash.cell(row=rm_start+6, column=6, value=f"=A{rm_start+6}")
-
 labels = Reference(ws_dash, min_col=6, min_row=rm_start+1, max_row=rm_start+6)
 
 s = Series(y_vals, x_vals, title="Dimensions")
 s.graphicalProperties.line.noFill = True
 s.marker.symbol = 'circle'
-s.marker.size = 8
+s.marker.size = 10
 s.marker.graphicalProperties.solidFill = "1F4E79"
 s.dLbls = DataLabelList()
 s.dLbls.showVal = False
 s.dLbls.showCatName = True
 rm_chart.series.append(s)
 
-# Quadrant divider lines
-ws_dash.cell(row=rm_start+1, column=7, value=2.0)
-ws_dash.cell(row=rm_start+2, column=7, value=2.0)
-ws_dash.cell(row=rm_start+1, column=8, value=0)
-ws_dash.cell(row=rm_start+2, column=8, value=25)
+ws_dash.add_chart(rm_chart, f"D{rm_start}")   # right of data table
 
-ws_dash.cell(row=rm_start+1, column=9, value=0)
-ws_dash.cell(row=rm_start+2, column=9, value=5)
-ws_dash.cell(row=rm_start+1, column=10, value=15)
-ws_dash.cell(row=rm_start+2, column=10, value=15)
+# Spacer
+chart_end_row = rm_start + 15
+ws_dash.row_dimensions[chart_end_row].height = 8
 
-ws_dash.add_chart(rm_chart, f"A{rm_start + 9}")
 
-# Department Comparison
-dept_comp_col = 11
-ws_dash.cell(row=risk_matrix_row, column=dept_comp_col,
-             value="Department Comparison (Filterable)").font = h2_font
-ws_dash.merge_cells(start_row=risk_matrix_row,
-                    start_column=dept_comp_col,
-                    end_row=risk_matrix_row,
-                    end_column=dept_comp_col + 6)
+# ═══════════════════════════════════════════════════════════════════
+# SECTION 4: Department Comparison
+# ═══════════════════════════════════════════════════════════════════
+dept_divider = chart_end_row + 1
+add_section_divider(ws_dash, dept_divider,
+                    "4  Department Comparison  —  Filterable Dimension Scores", BLUE)
 
-filt_row = risk_matrix_row + 1
-ws_dash.cell(row=filt_row, column=dept_comp_col,
-             value="Filter: Department").font = h3_font
-ws_dash.cell(row=filt_row+1, column=dept_comp_col,
-             value="All").font = bold_data_font
+# Filter row
+filt_row = dept_divider + 1
+ws_dash.cell(row=filt_row, column=1,
+             value="Filter: Department").font = Font(name='Calibri', bold=True, size=10, color=DARK_GRAY)
+ws_dash.cell(row=filt_row, column=2,
+             value="All").font = Font(name='Calibri', bold=True, size=10, color=DARK_GRAY)
+ws_dash.cell(row=filt_row, column=2).fill = PatternFill(start_color="FFF8E1",
+                                                         end_color="FFF8E1", fill_type='solid')
+ws_dash.cell(row=filt_row, column=2).border = thin_border
+ws_dash.cell(row=filt_row, column=2).alignment = center_align
 
-dv_dept = DataValidation(type="list",
-                         formula1=f'"All,{",".join(DEPARTMENTS)}"',
-                         allow_blank=True)
-dv_dept.prompt = "Select a department to filter"
+dv_dept = DataValidation(
+    type="list",
+    formula1=f'"All,{",".join(DEPARTMENTS)}"',
+    allow_blank=True
+)
+dv_dept.prompt = "Select a department to filter the table below"
 dv_dept.promptTitle = "Department Filter"
-dv_dept.add(ws_dash.cell(row=filt_row+1, column=dept_comp_col))
+dv_dept.add(ws_dash.cell(row=filt_row, column=2))
 ws_dash.add_data_validation(dv_dept)
 
-comp_start = filt_row + 3
-comp_headers = ["Dimension", "Avg Promise", "Avg Experience", "Gap", "Health Score"]
-for c, h in enumerate(comp_headers, dept_comp_col):
-    ws_dash.cell(row=comp_start, column=c, value=h)
-apply_header_style(ws_dash, comp_start, dept_comp_col + 4)
+filter_ref = f"$B${filt_row}"
 
-filter_cell = f"${get_column_letter(dept_comp_col)}${filt_row+1}"
+# Table headers
+comp_headers = ["Dimension", "Avg Promise", "Avg Experience", "Gap", "Health Score"]
+comp_start = filt_row + 2
+for ci, h in enumerate(comp_headers, 1):
+    ws_dash.cell(row=comp_start, column=ci, value=h)
+apply_header_style(ws_dash, comp_start, len(comp_headers))
 
 for d_idx, dim in enumerate(DIMENSIONS):
     row = comp_start + 1 + d_idx
-    ws_dash.cell(row=row, column=dept_comp_col, value=dim["name"])
-    ws_dash.cell(row=row, column=dept_comp_col).font = bold_data_font
+    ws_dash.cell(row=row, column=1, value=dim["name"])
+    ws_dash.cell(row=row, column=1).font = bold_data_font
+    ws_dash.cell(row=row, column=1).alignment = center_align
+    ws_dash.cell(row=row, column=1).border = thin_border
+    if d_idx % 2 == 1:
+        ws_dash.cell(row=row, column=1).fill = lt_gray_fill
 
-    p_refs_if = []
-    e_refs_if = []
+    p_items = []
+    e_items = []
     for item_idx in range(len(dim["items"])):
         global_i = d_idx * 5 + item_idx
         p_col = raw_data_col_letter(global_i, True)
         e_col = raw_data_col_letter(global_i, False)
+        rd_range = f"'Raw Data'!$B$4:$B${4+NUM_RESPONDENTS-1}"
+        p_rng = f"'Raw Data'!{p_col}$4:{p_col}${4+NUM_RESPONDENTS-1}"
+        e_rng = f"'Raw Data'!{e_col}$4:{e_col}${4+NUM_RESPONDENTS-1}"
 
-        rd_dept_range = f"'Raw Data'!$B$4:$B${4+NUM_RESPONDENTS-1}"
-        rd_p_range = f"'Raw Data'!{p_col}$4:{p_col}${4+NUM_RESPONDENTS-1}"
-        rd_e_range = f"'Raw Data'!{e_col}$4:{e_col}${4+NUM_RESPONDENTS-1}"
+        p_items.append(
+            f"IF({filter_ref}=\"All\",AVERAGE({p_rng}),"
+            f"AVERAGEIF({rd_range},{filter_ref},{p_rng}))")
+        e_items.append(
+            f"IF({filter_ref}=\"All\",AVERAGE({e_rng}),"
+            f"AVERAGEIF({rd_range},{filter_ref},{e_rng}))")
 
-        p_refs_if.append(
-            f"IF({filter_cell}=\"All\","
-            f"AVERAGE({rd_p_range}),"
-            f"AVERAGEIF({rd_dept_range},{filter_cell},{rd_p_range}))")
-        e_refs_if.append(
-            f"IF({filter_cell}=\"All\","
-            f"AVERAGE({rd_e_range}),"
-            f"AVERAGEIF({rd_dept_range},{filter_cell},{rd_e_range}))")
+    ws_dash.cell(row=row, column=2,
+                 value=f"=({'+'.join(p_items)})/{len(dim['items'])}").number_format = '0.00'
+    ws_dash.cell(row=row, column=3,
+                 value=f"=({'+'.join(e_items)})/{len(dim['items'])}").number_format = '0.00'
+    ws_dash.cell(row=row, column=4,
+                 value=f"=B{row}-C{row}").number_format = '0.00'
+    ws_dash.cell(row=row, column=5,
+                 value=f"=MAX(0,MIN(100,100-D{row}*20))").number_format = '0.0'
 
-    ws_dash.cell(row=row, column=dept_comp_col+1,
-                 value=f"=({'+'.join(p_refs_if)})/{len(dim['items'])}")
-    ws_dash.cell(row=row, column=dept_comp_col+1).number_format = '0.00'
+    for ci in range(2, 6):
+        cell = ws_dash.cell(row=row, column=ci)
+        cell.font = data_font
+        cell.alignment = center_align
+        cell.border = thin_border
+        if d_idx % 2 == 1:
+            cell.fill = lt_gray_fill
 
-    ws_dash.cell(row=row, column=dept_comp_col+2,
-                 value=f"=({'+'.join(e_refs_if)})/{len(dim['items'])}")
-    ws_dash.cell(row=row, column=dept_comp_col+2).number_format = '0.00'
-
-    ws_dash.cell(row=row, column=dept_comp_col+3,
-                 value=f"={get_column_letter(dept_comp_col+1)}{row}"
-                       f"-{get_column_letter(dept_comp_col+2)}{row}")
-    ws_dash.cell(row=row, column=dept_comp_col+3).number_format = '0.00'
-
-    ws_dash.cell(row=row, column=dept_comp_col+4,
-                 value=f"=MAX(0,MIN(100,100-{get_column_letter(dept_comp_col+3)}{row}*20))")
-    ws_dash.cell(row=row, column=dept_comp_col+4).number_format = '0.0'
-
-    for c in range(dept_comp_col, dept_comp_col + 5):
-        ws_dash.cell(row=row, column=c).font = data_font
-        ws_dash.cell(row=row, column=c).alignment = center_align
-        ws_dash.cell(row=row, column=c).border = thin_border
-
-loc_filt_row = filt_row + 9
-ws_dash.cell(row=loc_filt_row, column=dept_comp_col,
-             value="Filter: Location").font = h3_font
-ws_dash.cell(row=loc_filt_row+1, column=dept_comp_col,
-             value="All").font = bold_data_font
-
-dv_loc = DataValidation(type="list",
-                         formula1=f'"All,{",".join(LOCATIONS)}"',
-                         allow_blank=True)
-dv_loc.prompt = "Select a location to filter"
-dv_loc.promptTitle = "Location Filter"
-dv_loc.add(ws_dash.cell(row=loc_filt_row+1, column=dept_comp_col))
-ws_dash.add_data_validation(dv_loc)
-
-dp_col = get_column_letter(dept_comp_col + 3)
+# Conditional formatting on Department Gap column
+dp_col = "D"
 ws_dash.conditional_formatting.add(
     f'{dp_col}{comp_start+1}:{dp_col}{comp_start+6}',
-    ColorScaleRule(
-        start_type='num', start_value=0,   start_color='00B050',
-        mid_type='num',   mid_value=1.5,    mid_color='FFC000',
-        end_type='num',   end_value=3.5,    end_color='C00000'
-    )
+    ColorScaleRule(start_type='num', start_value=0,   start_color='00B050',
+                   mid_type='num',   mid_value=1.5,    mid_color='FFC000',
+                   end_type='num',   end_value=3.5,    end_color='C00000')
 )
 
-for col_letter in ['A','B','C','D','E','F']:
-    ws_dash.column_dimensions[col_letter].width = 16
-for col_letter in ['G','H','I','J']:
-    ws_dash.column_dimensions[col_letter].width = 10
-for col_letter in ['K','L','M','N','O','P','Q','R']:
-    ws_dash.column_dimensions[col_letter].width = 14
-
-ws_dash.sheet_view.showGridLines = False
-ws_dash.freeze_panes = 'A7'
+# Final spacer + freeze
+ws_dash.freeze_panes = 'A1'   # freeze top rows — no, we want rows 1-2 frozen
+# Actually freeze at A3 freezes rows 1-2 (title banner + subtitle)
+# But since we have dynamic content below, freeze at A3 works well
+ws_dash.freeze_panes = 'A3'
 
 print("[OK] Sheet 4: Dashboard -- complete")
 

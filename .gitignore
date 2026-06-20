@@ -25,3 +25,5 @@ Thumbs.db
 
 # Output (the generated xlsx is tracked, but temp copies are not)
 *.tmp.xlsx
+
+# Credentials (never committed).env

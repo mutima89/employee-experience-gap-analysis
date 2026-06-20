@@ -422,8 +422,8 @@ for d_idx, dim in enumerate(DIMENSIONS):
         global_i = d_idx * 5 + item_idx
         p_col = raw_data_col_letter(global_i, True)
         e_col = raw_data_col_letter(global_i, False)
-        promise_refs.append(f"{p_col}{dr_start}:{p_col}{dr_end}")
-        exp_refs.append(f"{e_col}{dr_start}:{e_col}{dr_end}")
+        promise_refs.append(f"'Raw Data'!{p_col}{dr_start}:{p_col}{dr_end}")
+        exp_refs.append(f"'Raw Data'!{e_col}{dr_start}:{e_col}{dr_end}")
 
     promise_formula = f"=AVERAGE({','.join(promise_refs)})"
     ws_score.cell(row=row, column=2, value=promise_formula)
@@ -984,7 +984,7 @@ for d_idx, dim in enumerate(DIMENSIONS):
     ws_dash.cell(row=row, column=dept_comp_col+3).number_format = '0.00'
 
     ws_dash.cell(row=row, column=dept_comp_col+4,
-                 value=f"=MAX(0,MIN(100,{get_column_letter(dept_comp_col+3)}{row}*20))")
+                 value=f"=MAX(0,MIN(100,100-{get_column_letter(dept_comp_col+3)}{row}*20))")
     ws_dash.cell(row=row, column=dept_comp_col+4).number_format = '0.0'
 
     for c in range(dept_comp_col, dept_comp_col + 5):

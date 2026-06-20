@@ -1118,7 +1118,7 @@ ws_rel['A1'].font = h1_font
 ws_rel.row_dimensions[1].height = 28
 
 ws_rel.merge_cells('A2:H2')
-ws_rel['A2'].value = "Target: alpha >= 0.70. All calculations use VAR.S and native Excel formulas."
+ws_rel['A2'].value = "Target: alpha >= 0.70. All calculations use VAR (sample variance) and native Excel formulas."
 ws_rel['A2'].font = Font(name='Calibri', italic=True, color=DARK_GRAY, size=9)
 
 rel_header_row = 4
@@ -1140,13 +1140,14 @@ for d_idx, dim in enumerate(DIMENSIONS):
         global_i = d_idx * 5 + item_idx
         e_col = raw_data_col_letter(global_i, False)
         item_range = f"'Raw Data'!{e_col}4:{e_col}{4+NUM_RESPONDENTS-1}"
-        var_refs.append(f"VAR.S({item_range})")
+        var_refs.append(f"VAR({item_range})")
 
     ws_rel.cell(row=row, column=3,
                 value=f"=SUM({','.join(var_refs)})")
     ws_rel.cell(row=row, column=3).number_format = '0.000'
 
     helper_col = 7
+    helper_base = 105 + d_idx * NUM_RESPONDENTS  # Non-overlapping block per dimension
     for resp_offset in range(NUM_RESPONDENTS):
         rd_row = 4 + resp_offset
         sum_cells = []
@@ -1154,14 +1155,14 @@ for d_idx, dim in enumerate(DIMENSIONS):
             global_i = d_idx * 5 + item_idx
             e_col = raw_data_col_letter(global_i, False)
             sum_cells.append(f"'Raw Data'!{e_col}{rd_row}")
-        hr = row + 100 + resp_offset
+        hr = helper_base + resp_offset
         ws_rel.cell(row=hr, column=helper_col,
                     value=f"=SUM({'+'.join(sum_cells)})")
 
     helper_col_letter = get_column_letter(helper_col)
-    total_range = f"{helper_col_letter}{row+100}:{helper_col_letter}{row+100+NUM_RESPONDENTS-1}"
+    total_range = f"{helper_col_letter}{helper_base}:{helper_col_letter}{helper_base+NUM_RESPONDENTS-1}"
     ws_rel.cell(row=row, column=4,
-                value=f"=VAR.S({total_range})")
+                value=f"=VAR({total_range})")
     ws_rel.cell(row=row, column=4).number_format = '0.000'
 
     ws_rel.cell(row=row, column=5,
@@ -1478,8 +1479,13 @@ if os.path.exists(OUTPUT_FILE):
         os.remove(OUTPUT_FILE)
     except PermissionError:
         pass  # File open in Excel, copy will overwrite below
-shutil.copy2(TEMP_FILE, OUTPUT_FILE)
-print(f"[OK] Workbook saved to project folder: {OUTPUT_FILE}")
+try:
+    shutil.copy2(TEMP_FILE, OUTPUT_FILE)
+    print(f"[OK] Workbook saved to project folder: {OUTPUT_FILE}")
+except PermissionError:
+    alt_output = OUTPUT_FILE.replace('.xlsx', '_v2.xlsx')
+    shutil.copy2(TEMP_FILE, alt_output)
+    print(f"[OK] Workbook saved as: {alt_output} (original locked in Excel)")
 print(f"\nSheets created:")
 print(f"  1. Survey           -- 30 items, 6 dimensions, dual-scale")
 print(f"  2. Raw Data         -- {NUM_RESPONDENTS} sample respondents")

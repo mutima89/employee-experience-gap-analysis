@@ -44,7 +44,7 @@ DRIVER ANALYSIS ──────┬── CORREL MATRIX       ── Each dime
                       ├── RANKED PREDICTORS   ── RANK() from strongest driver
                       └── BAR CHART           ── Visual correlation profile
 
-TURNOVER PREDICTION ──┬── AGGREGATE MODEL     ── Risk × 0.5 + Manager × 0.3 + Culture × 0.2
+TURNOVER PREDICTION ──┬── AGGREGATE MODEL     ── Normalised Risk, Manager & Culture gaps (0-100%)
                       ├── PER-RESPONDENT      ── Individualized probability scores
                       │                       ── Very Low · Low · Moderate · High · Critical
                       └── SUMMARY STATS       ── Average probability · Counts by tier
@@ -56,13 +56,13 @@ TURNOVER PREDICTION ──┬── AGGREGATE MODEL     ── Risk × 0.5 + Man
 
 Most employee surveys measure **satisfaction** — a lagging, fuzzy, often useless metric. This workbook measures **alignment**: the distance between what organizations promise and what employees actually experience. That gap is where attrition hides, engagement dies, and culture erodes.
 
-Built on organizational psychology, validated by Cronbach's Alpha, and powered by native Excel formulas — no VBA, no black boxes, no excuses.
+Informed by organizational-psychology research, with internal consistency checked by Cronbach's Alpha, and powered by native Excel formulas — no VBA, no black boxes.
 
 ---
 
 ## The Architecture
 
-### 7 Sheets · 30 Items · 6 Dimensions · 175+ Verified Checks
+### 7 Sheets · 30 Items · 6 Dimensions
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -86,7 +86,7 @@ Built on organizational psychology, validated by Cronbach's Alpha, and powered b
 
 ## The 6 Dimensions
 
-Each dimension is weighted by its proven impact on retention and engagement outcomes:
+Dimension weights are design assumptions informed by the research cited below, not coefficients fitted to data; recalibrate them against your own turnover history:
 
 | Dimension | Weight | Measures | Why It Matters |
 |-----------|--------|----------|----------------|
@@ -132,12 +132,12 @@ Health Score = MAX(0, MIN(100, 100 − Gap × 20))
 
 ### Retention Risk Algorithm
 ```
-Risk Score = Manager_Gap × 0.25
-           + Culture_Gap × 0.20
-           + Growth_Gap × 0.20
-           + JobFit_Gap × 0.15
-           + Team_Gap × 0.10
-           + Innovation_Gap × 0.10
+Weighted Gap = Manager_Gap × 0.25 + Culture_Gap × 0.20 + Growth_Gap × 0.20
+             + JobFit_Gap × 0.15 + Team_Gap × 0.10 + Innovation_Gap × 0.10
+               (negative gaps, i.e. over-delivery, count as 0)
+
+Risk Score   = MIN(100, Weighted Gap / 9 × 100)
+               └── 9 is the largest possible gap on a 1-10 scale, so the score runs 0-100
 
 Classification:
   0-20   Very Low Risk
@@ -149,11 +149,13 @@ Classification:
 
 ### Turnover Prediction Model
 ```
-Turnover Probability = Retention_Risk × 0.5
-                     + Manager_Gap × 0.3
-                     + Culture_Gap × 0.2
+Turnover Index = MIN(100%, 0.5 × Risk_Score / 100
+                         + 0.3 × Manager_Gap / 9
+                         + 0.2 × Culture_Gap / 9)
 
-  └── Expressed as percentage. Higher = greater flight risk.
+  └── Every input is normalised to 0-1, so the index runs 0-100%.
+  └── Illustrative index, not a statistically fitted probability.
+      Very Low ≤ 20% · Low ≤ 40% · Moderate ≤ 60% · High ≤ 80% · Critical > 80%
 ```
 
 ### Cronbach's Alpha (Reliability)
@@ -211,36 +213,9 @@ r = CORREL(Dimension_Experience, Overall_Experience)
 
 ## Quality Assurance
 
-Every aspect of this workbook was verified by an automated fine-comb evaluation:
-
-```
-Category                Checks   Passed   Coverage
-─────────────────────────────────────────────────────
-Sheet Structure            14       14    100%
-Survey Sheet               17       17    100%
-Raw Data                   12       12    100%
-Scoring Engine             48       48    100%
-Dashboard                  18       18    100%
-Reliability Analysis       14       14    100%
-Driver Analysis            14       14    100%
-Turnover Prediction        14       14    100%
-Cross-Cutting Design       22       22    100%
-File Integrity              2        2    100%
-─────────────────────────────────────────────────────
-TOTAL                     175+     175+   100% ALL PASS
-```
-
-### Verified by the evaluation suite (`_evaluate.py`):
-- All 30 survey items present with correct weights
-- All formulas syntactically correct (`AVERAGE`, `SUMPRODUCT`, `CORREL`, `VAR.S`, `IF`, `RANK`)
-- All merged cells resolved (formulas stored in proper cells)
-- All 3 charts present (Radar, Risk Matrix Scatter, Driver Bar)
-- All 2 interactive filters working (Department, Location data validation)
-- 14 conditional formatting rules applied
-- All freeze panes at correct positions
-- Gridlines hidden on Dashboard
-- Landscape print settings configured
-- Font consistency verified (Calibri across all sheets)
+- **Reproducible:** `generate_workbook.py` rebuilds the workbook from scratch with a fixed random seed; regenerating produces the committed file cell for cell.
+- **Recalculated:** the generated workbook was recalculated in LibreOffice to check that every formula evaluates without errors and that outputs stay in range. On the 50 sample respondents: Retention Risk 24.0 (Low), Turnover Index 22.8% (Low), respondent indices 9%–41%.
+- **Structure:** 7 sheets, 30 items, 3 charts (radar, risk-matrix scatter, driver bar), Department/Location filters, 14 conditional-formatting rules, data validation (integers 1-10) on score entry.
 
 ---
 
@@ -274,7 +249,7 @@ Requires Python 3.8+ and openpyxl 3.1+.
 This workbook is **100% reproducible**. The `generate_workbook.py` script generates the entire `.xlsx` from scratch using openpyxl — no manual formatting, no copy-paste, no hidden dependencies.
 
 ```python
-# Example: building one of the 175+ formula references
+# Example: building one of the formula references
 def raw_data_col_letter(global_item_idx, is_promise=True):
     col_idx = 6 + global_item_idx * 2 + (0 if is_promise else 1)
     return get_column_letter(col_idx)
@@ -298,6 +273,7 @@ employee-experience-gap-analysis/
 ├── employee-experience-gap-analysis.xlsx    ← The workbook (239 KB)
 ├── generate_workbook.py                     ← Reproducible generator (1418 lines)
 ├── README.md                                ← This file
+├── LICENSE                                  ← MIT
 ├── .gitignore                               ← Python + OS ignores
 ```
 
@@ -318,14 +294,14 @@ employee-experience-gap-analysis/
 | **Conditional Formatting** | 14 rules across 4 sheets |
 | **Data Validation** | Scoring sheets: integer 1-10 |
 | **File Size** | ~239 KB |
-| **Evaluation** | 175+ tests, 100% pass rate |
+| **Verification** | Seeded generator; recalculated in LibreOffice |
 
 ---
 
 ## License
 
-MIT — freely use, modify, and distribute. No attribution required, though appreciated.
+MIT — see [`LICENSE`](LICENSE).
 
 ---
 
-*Built with openpyxl, driven by data, validated by science.*
+*Built with openpyxl and native Excel formulas.*

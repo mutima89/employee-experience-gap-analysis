@@ -342,9 +342,13 @@ def generate_respondent_data():
     scores = {}
     for dim in DIMENSIONS:
         params = DIM_PARAMS[dim["name"]]
+        # Each respondent has their own level per dimension, shared by its 5 items,
+        # plus item-level noise. Independent items would make Cronbach's alpha ~0.
+        shared_p = random.gauss(0, params["ps"] * 0.75)
+        shared_e = random.gauss(0, params["es"] * 0.75)
         for idx in range(len(dim["items"])):
-            p = generate_score(params["p"], params["ps"])
-            e = generate_score(params["e"], params["es"])
+            p = generate_score(params["p"] + shared_p, params["ps"] * 0.66)
+            e = generate_score(params["e"] + shared_e, params["es"] * 0.66)
             if random.random() < 0.05:
                 p = random.randint(9, 10)
                 e = random.randint(1, 3)
@@ -674,7 +678,7 @@ for r in range(b_header_row + 1, data_end + 1):
         if r % 2 == 0:
             cell.fill = lt_gray_fill
 
-score_widths = {'A': 10, 'B': 18, 'C': 14, 'D': 18, 'E': 16}
+score_widths = {'A': 26, 'B': 18, 'C': 14, 'D': 18, 'E': 16}
 for i in range(6, len(b_headers) + 1):
     score_widths[get_column_letter(i)] = 11
 set_col_widths(ws_score, score_widths)
@@ -847,11 +851,11 @@ for d_idx, dim in enumerate(DIMENSIONS):
 
 # Radar chart — placed to the right of the data table
 radar = RadarChart()
-radar.type = "filled"
+radar.type = "marker"   # outlines, so the smaller Experience polygon is not hidden under Promise
 radar.style = 26
 radar.title = "Experience Profile: Promise vs Actual"
-radar.width = 18
-radar.height = 14
+radar.width = 16
+radar.height = 10.5
 
 cats = Reference(ws_dash, min_col=1, min_row=10, max_row=15)
 p_data = Reference(ws_dash, min_col=2, min_row=radar_hdr, max_row=15)
@@ -860,14 +864,16 @@ radar.set_categories(cats)
 e_data = Reference(ws_dash, min_col=3, min_row=radar_hdr, max_row=15)
 radar.add_data(e_data, titles_from_data=True)
 
-s0 = radar.series[0]
-s0.graphicalProperties.solidFill = "2E75B6"
-s0.graphicalProperties.line.solidFill = "1F4E79"
-s1 = radar.series[1]
-s1.graphicalProperties.solidFill = "ED7D31"
-s1.graphicalProperties.line.solidFill = "C00000"
+for ser, colour in ((radar.series[0], "1F4E79"), (radar.series[1], "ED7D31")):
+    ser.graphicalProperties.line.solidFill = colour
+    ser.graphicalProperties.line.width = 28575  # 2.25 pt
+    ser.marker.symbol = "circle"
+    ser.marker.size = 6
+    ser.marker.graphicalProperties.solidFill = colour
+    ser.marker.graphicalProperties.line.solidFill = colour
 radar.legend.position = 'b'
-ws_dash.add_chart(radar, "D9")   # starts at col D, next to the data table
+# Anchored in column H, clear of the tables in A-F (the heat map below uses A-F)
+ws_dash.add_chart(radar, "H9")
 
 # Spacer
 ws_dash.row_dimensions[16].height = 8
@@ -972,39 +978,33 @@ for d_idx, dim in enumerate(DIMENSIONS):
 rm_chart = ScatterChart()
 rm_chart.title = "Risk Matrix — Priority Quadrants"
 rm_chart.x_axis.title = "Gap Size"
-rm_chart.y_axis.title = "Weight × 100"
-rm_chart.width = 18
-rm_chart.height = 12
+rm_chart.y_axis.title = "Weight"
+rm_chart.width = 16
+rm_chart.height = 10
 rm_chart.x_axis.scaling.min = 0
 rm_chart.x_axis.scaling.max = 5
 rm_chart.y_axis.scaling.min = 0
-rm_chart.y_axis.scaling.max = 25
+rm_chart.y_axis.scaling.max = 0.25
+rm_chart.y_axis.number_format = '0%'
 
-# Y values (weight * 100, static) in col E
+
+# One series per dimension, so the legend names each point (scatter charts
+# cannot label points from a cell range in openpyxl)
+RM_COLOURS = ["1F4E79", "2E75B6", "00B050", "ED7D31", "7030A0", "C00000"]
 for d_idx, dim in enumerate(DIMENSIONS):
     row = rm_start + 1 + d_idx
-    ws_dash.cell(row=row, column=5, value=dim["weight"] * 100).number_format = '0.0'
+    s = Series(Reference(ws_dash, min_col=3, min_row=row, max_row=row),   # y = weight
+               Reference(ws_dash, min_col=2, min_row=row, max_row=row),
+               title=dim["name"])
+    s.graphicalProperties.line.noFill = True
+    s.marker.symbol = 'circle'
+    s.marker.size = 11
+    s.marker.graphicalProperties.solidFill = RM_COLOURS[d_idx]
+    s.marker.graphicalProperties.line.solidFill = RM_COLOURS[d_idx]
+    rm_chart.series.append(s)
+rm_chart.legend.position = 'r'
 
-# Labels in col F (dimension names from col A)
-for d_idx in range(6):
-    row = rm_start + 1 + d_idx
-    ws_dash.cell(row=row, column=6, value=f"=A{row}").font = small_font
-
-y_vals = Reference(ws_dash, min_col=5, min_row=rm_start+1, max_row=rm_start+6)
-x_vals = Reference(ws_dash, min_col=2, min_row=rm_start+1, max_row=rm_start+6)
-labels = Reference(ws_dash, min_col=6, min_row=rm_start+1, max_row=rm_start+6)
-
-s = Series(y_vals, x_vals, title="Dimensions")
-s.graphicalProperties.line.noFill = True
-s.marker.symbol = 'circle'
-s.marker.size = 10
-s.marker.graphicalProperties.solidFill = "1F4E79"
-s.dLbls = DataLabelList()
-s.dLbls.showVal = False
-s.dLbls.showCatName = True
-rm_chart.series.append(s)
-
-ws_dash.add_chart(rm_chart, f"D{rm_start}")   # right of data table
+ws_dash.add_chart(rm_chart, f"H{rm_start}")   # right of the data tables, clear of columns A-F
 
 # Spacer
 chart_end_row = rm_start + 15
@@ -1458,7 +1458,7 @@ for idx, (label, formula, fmt, color) in enumerate(stats_list):
         ws_turn.cell(row=row, column=c).border = thin_border
         ws_turn.cell(row=row, column=c).fill = lt_gray_fill
 
-set_col_widths(ws_turn, {'A': 12, 'B': 20, 'C': 15, 'D': 15, 'E': 16, 'F': 20, 'G': 14})
+set_col_widths(ws_turn, {'A': 26, 'B': 20, 'C': 15, 'D': 15, 'E': 16, 'F': 20, 'G': 14})
 ws_turn.freeze_panes = f'A{turn_data_start}'
 
 print("[OK] Sheet 7: Turnover Prediction -- complete")
@@ -1470,6 +1470,7 @@ print("[OK] Sheet 7: Turnover Prediction -- complete")
 for ws in [ws_survey, ws_data, ws_score, ws_dash, ws_rel, ws_driver, ws_turn]:
     ws.sheet_view.showGridLines = ws.title in ("Raw Data", "Survey")
     ws.page_setup.orientation = 'landscape'
+    ws.sheet_properties.pageSetUpPr.fitToPage = True  # without this, Excel ignores fitToWidth
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
     ws.page_setup.paperSize = ws.PAPERSIZE_A3

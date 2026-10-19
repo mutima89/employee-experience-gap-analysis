@@ -1,307 +1,138 @@
-# Employee Experience Gap Analysis & Retention Risk Assessment
+<div align="center">
 
-**Where science meets strategy — a professionally engineered Excel workbook that measures the gap between organizational promises and employee reality, with mathematically defensible scoring.**
+# Employee Experience Gap Analysis
 
-[![GitHub](https://img.shields.io/badge/GitHub-Repo-1F4E79?style=flat&logo=github)](https://github.com/mutima89/employee-experience-gap-analysis)
-[![Excel](https://img.shields.io/badge/Excel-2016%2B-00B050?style=flat&logo=microsoftexcel)](https://github.com/mutima89/employee-experience-gap-analysis)
-[![Python](https://img.shields.io/badge/Python-3.8%2B-2E75B6?style=flat&logo=python)](https://github.com/mutima89/employee-experience-gap-analysis)
-[![Formulas](https://img.shields.io/badge/Formulas-Native%20Excel-ED7D31?style=flat)](#)
-[![VBA](https://img.shields.io/badge/VBA-None-C00000?style=flat)](#)
+**A formula-driven Excel workbook that measures the gap between what an organisation promises and what employees experience, and turns it into retention-risk signals.**
 
----
+Native Excel formulas throughout, no VBA, regenerated reproducibly from a single Python script.
 
-## The Rhythm
+[![Excel](https://img.shields.io/badge/Excel-2016%2B%20%7C%20365-217346?logo=microsoftexcel&logoColor=white)](employee-experience-gap-analysis.xlsx)
+[![Python](https://img.shields.io/badge/generator-Python%203.8%2B%20%2B%20openpyxl-3776AB?logo=python&logoColor=white)](generate_workbook.py)
+[![No VBA](https://img.shields.io/badge/macros-none-success)](#how-scoring-works)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/mutima89/employee-experience-gap-analysis)](https://github.com/mutima89/employee-experience-gap-analysis/commits)
 
-```
-EXECUTIVE DASHBOARD ──┬── KPI METRICS       ── Overall Experience Index
-                      │                       ── Retention Risk Score
-                      │                       ── Engagement Score
-                      │                       ── Largest Gap Dimension
-                      │                       ── Strongest Dimension
-                      ├── RADAR CHART         ── Promise State (polygon)
-                      │                       ── Actual Experience (polygon)
-                      ├── HEAT MAP            ── 30 items, 6 dimensions
-                      │                       ── Green → Yellow → Orange → Red
-                      ├── RISK MATRIX         ── Gap vs Importance quadrants
-                      │                       ── Maintain · Monitor · Improve · Act
-                      └── DEPARTMENT VIEW      ── Filterable by Department/Location
-                                            ── AVERAGEIFS-powered comparisons
+[Overview](#overview) · [Screenshots](#screenshots) · [Quick start](#quick-start) · [Dimensions](#the-six-dimensions) · [Scoring](#how-scoring-works) · [Regenerate](#regenerating-the-workbook)
 
-SCORING ENGINE ───────┬── DIMENSION SCORES    ── Avg Promise · Avg Experience · Gap
-                      │                       ── Health Score (0-100 clamped)
-                      │                       ── Classification (Healthy/Watch/Concern/High Risk)
-                      ├── WEIGHTED INDICES    ── Overall Experience Index (SUMPRODUCT)
-                      │                       ── Retention Risk Score (6-factor weighted)
-                      └── PER-RESPONDENT      ── 500-row capacity
-                                            ── Individual dimension profiles
+![Executive dashboard](docs/screenshots/dashboard.png)
 
-RELIABILITY ──────────┬── CRONBACH'S ALPHA    ── Internal consistency per dimension
-                      │                       ── VAR.S-based, α ≥ 0.70 target
-                      └── COLOR-CODED         ── Excellent → Good → Acceptable → Poor
-
-DRIVER ANALYSIS ──────┬── CORREL MATRIX       ── Each dimension vs Overall Index
-                      │                       ── Strong · Moderate · Weak · Negligible
-                      ├── RANKED PREDICTORS   ── RANK() from strongest driver
-                      └── BAR CHART           ── Visual correlation profile
-
-TURNOVER PREDICTION ──┬── AGGREGATE MODEL     ── Normalised Risk, Manager & Culture gaps (0-100%)
-                      ├── PER-RESPONDENT      ── Individualized probability scores
-                      │                       ── Very Low · Low · Moderate · High · Critical
-                      └── SUMMARY STATS       ── Average probability · Counts by tier
-```
+</div>
 
 ---
 
-## Why This Exists
+## Overview
 
-Most employee surveys measure **satisfaction** — a lagging, fuzzy, often useless metric. This workbook measures **alignment**: the distance between what organizations promise and what employees actually experience. That gap is where attrition hides, engagement dies, and culture erodes.
+Satisfaction surveys ask how people feel. This workbook asks each item twice — *was it promised?* and *do you experience it?* — and analyses the difference. Large gaps in high-weight dimensions are where disengagement and attrition tend to start.
 
-Informed by organizational-psychology research, with internal consistency checked by Cronbach's Alpha, and powered by native Excel formulas — no VBA, no black boxes.
+| Sheet | What it contains |
+|---|---|
+| **Survey** | Item bank: 30 items in 6 dimensions, each with a promise question and an experience question (1–10) |
+| **Raw Data** | One row per respondent: department, location, business unit, manager, 60 scores; capacity 500 respondents |
+| **Scoring Engine** | Per-dimension averages, gaps, health scores and classifications; Overall Experience Index; Retention Risk; per-respondent profiles |
+| **Dashboard** | KPI tiles, promise-vs-actual radar, 30-item gap heat map, risk matrix, department filter |
+| **Reliability Analysis** | Cronbach's alpha per dimension with interpretation |
+| **Driver Analysis** | Correlation of each dimension with overall experience, ranked, with chart |
+| **Turnover Prediction** | Aggregate and per-respondent turnover-risk index with risk levels |
 
----
+Ships with 50 synthetic respondents across 6 departments so every sheet is populated on first open.
 
-## The Architecture
+## Screenshots
 
-### 7 Sheets · 30 Items · 6 Dimensions
+| Scoring engine | Turnover prediction |
+|:---:|:---:|
+| ![Scoring engine](docs/screenshots/scoring-engine.png) | ![Turnover prediction](docs/screenshots/turnover-prediction.png) |
+| **Reliability (Cronbach's alpha)** | **Driver analysis** |
+| ![Reliability analysis](docs/screenshots/reliability.png) | ![Driver analysis](docs/screenshots/driver-analysis.png) |
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                        WORKBOOK ARCHITECTURE                      │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                   │
-│  SURVEY ──────► RAW DATA ──────► SCORING ENGINE ──────► DASHBOARD│
-│   30 items        50 resp.         Formulas          KPIs+Charts │
-│   Dual-scale      Validation      Gaps·Health·Risk  Radar·Heat·RM│
-│                                                       │          │
-│  RELIABILITY ◄─────────────────────────────────────────┘          │
-│   Cronbach's α                                                    │
-│   per dimension                                  DRIVER ANALYSIS  │
-│                                                  CORREL·Rank·Bar  │
-│  TURNOVER PREDICTION                                               │
-│   Risk Model · Per-respondent · Stats                              │
-└──────────────────────────────────────────────────────────────────┘
-```
+<details>
+<summary>Survey item bank</summary>
 
----
+![Survey sheet](docs/screenshots/survey.png)
 
-## The 6 Dimensions
+</details>
 
-Dimension weights are design assumptions informed by the research cited below, not coefficients fitted to data; recalibrate them against your own turnover history:
+## Quick start
 
-| Dimension | Weight | Measures | Why It Matters |
-|-----------|--------|----------|----------------|
-| **Job Fit** | **20%** | Role clarity, skill utilization, career growth alignment, workload appropriateness, meaningfulness | The foundation — if the role doesn't fit, nothing else matters |
-| **Manager Effectiveness** | **20%** | Coaching quality, feedback quality, fairness, communication, trust | Managers are the #1 driver of engagement (Gallup, 2023) |
-| **Team Collaboration** | **15%** | Cooperation, psychological safety, knowledge sharing, conflict resolution, supportiveness | Team dynamics predict 30% of variance in engagement (Google Aristotle) |
-| **Workplace Culture** | **15%** | Inclusion, respect, transparency, recognition, values alignment | Culture eats strategy for breakfast (Drucker) |
-| **Innovation & Empowerment** | **15%** | Autonomy, decision authority, idea acceptance, learning opportunities, experimentation | Psychological empowerment drives discretionary effort |
-| **Rewards & Growth** | **15%** | Compensation fairness, promotion opportunities, recognition, training, career progression | Equity and growth are top attrition predictors |
+1. Download [`employee-experience-gap-analysis.xlsx`](employee-experience-gap-analysis.xlsx) and open it in Excel 2016 or later (Windows or Mac) or Microsoft 365.
+2. Replace the sample rows in **Raw Data** with your responses (scores 1–10; entry is validated).
+3. Every other sheet recalculates. Use the **Department** filter on the Dashboard to compare groups.
 
-### The Dual Scale
+## The six dimensions
 
-Every item is rated **twice** on a 1-10 scale:
+| Dimension | Weight | Items |
+|---|---|---|
+| Job Fit | 20% | Role clarity, skill utilisation, career-growth alignment, workload, meaningfulness of work |
+| Manager Effectiveness | 20% | Coaching, feedback, fairness, communication, trust |
+| Team Collaboration | 15% | Cooperation, psychological safety, knowledge sharing, conflict resolution, supportiveness |
+| Workplace Culture | 15% | Inclusion, respect, transparency, recognition, values alignment |
+| Innovation & Empowerment | 15% | Autonomy, decision authority, idea acceptance, learning opportunities, experimentation support |
+| Rewards & Growth | 15% | Compensation fairness, promotion opportunities, recognition, training, career progression |
 
-```
-PROMISE                    EXPERIENCE                  GAP
-"Was this promised?"       "Do you experience it?"     Promise − Experience
-    1-10                       1-10                    ≤1 Healthy
-                                                        1-2 Watch
-                                                        2-3 Concern
-                                                        >3 High Risk
-```
+Weights are design assumptions informed by engagement research, not coefficients fitted to turnover data. Recalibrate them against your own history before relying on the risk outputs.
 
----
+## How scoring works
 
-## Formula Engine
+All formulas are native Excel (`AVERAGE`, `SUMPRODUCT`, `VAR.S`, `CORREL`, `RANK`, `INDEX/MATCH`).
 
-Every calculation uses **native Excel formulas** — zero VBA, fully transparent, fully auditable.
+```text
+Gap            = Avg(promise items) − Avg(experience items)               per dimension, 1–10 scale
+Health score   = MAX(0, MIN(100, 100 − Gap × 20))                         0–100
+Classification : ≤ 1 Healthy · ≤ 2 Watch · ≤ 3 Concern · > 3 High Risk
 
-### Dimension Scoring
-```
-Gap          = AVERAGE(Promise Items) − AVERAGE(Experience Items)
-Health Score = MAX(0, MIN(100, 100 − Gap × 20))
-              └── clamped to 0-100 range
+Overall Experience Index = SUMPRODUCT(Health scores, Weights) / SUM(Weights)
+Engagement Score         = average of the six health scores
 ```
 
-### Overall Experience Index
-```
-= SUMPRODUCT(Health_Scores, Weights) / SUM(Weights)
-  └── Weighted: JobFit(20%) + Manager(20%) + Team(15%)
-                + Culture(15%) + Innovation(15%) + Rewards(15%)
-```
+**Retention Risk (0–100).** Weighted positive gaps (negative gaps, i.e. over-delivery, count as 0), scaled by the largest possible gap of 9:
 
-### Retention Risk Algorithm
-```
-Weighted Gap = Manager_Gap × 0.25 + Culture_Gap × 0.20 + Growth_Gap × 0.20
-             + JobFit_Gap × 0.15 + Team_Gap × 0.10 + Innovation_Gap × 0.10
-               (negative gaps, i.e. over-delivery, count as 0)
-
-Risk Score   = MIN(100, Weighted Gap / 9 × 100)
-               └── 9 is the largest possible gap on a 1-10 scale, so the score runs 0-100
-
-Classification:
-  0-20   Very Low Risk
-  21-40  Low Risk
-  41-60  Moderate Risk
-  61-80  High Risk
-  81-100 Critical Risk
+```text
+Risk = MIN(100, 100 × (0.25·Manager + 0.20·Culture + 0.20·Rewards + 0.15·JobFit + 0.10·Team + 0.10·Innovation) / 9)
+       0–20 Very Low · 21–40 Low · 41–60 Moderate · 61–80 High · 81–100 Critical
 ```
 
-### Turnover Prediction Model
-```
-Turnover Index = MIN(100%, 0.5 × Risk_Score / 100
-                         + 0.3 × Manager_Gap / 9
-                         + 0.2 × Culture_Gap / 9)
+**Turnover index (0–100%).** An illustrative index, not a statistically fitted probability:
 
-  └── Every input is normalised to 0-1, so the index runs 0-100%.
-  └── Illustrative index, not a statistically fitted probability.
-      Very Low ≤ 20% · Low ≤ 40% · Moderate ≤ 60% · High ≤ 80% · Critical > 80%
+```text
+Turnover = MIN(100%, 0.5 × Risk/100 + 0.3 × Manager gap/9 + 0.2 × Culture gap/9)
+           ≤ 20% Very Low · ≤ 40% Low · ≤ 60% Moderate · ≤ 80% High · > 80% Critical
 ```
 
-### Cronbach's Alpha (Reliability)
-```
-α = (k / (k-1)) × (1 − ΣVAR.S(item_i) / VAR.S(row_sum))
+**Reliability.** Cronbach's alpha per dimension, `α = k/(k−1) × (1 − Σ VAR.S(item) / VAR.S(total))`, interpreted from ≥ 0.9 Excellent down to < 0.5 Unacceptable; 0.70 is the usual minimum.
 
-  └── k = number of items per dimension
-  └── Target: α ≥ 0.70 (research standard)
-  └── Interpretation: ≥0.9 Excellent · ≥0.8 Good · ≥0.7 Acceptable
-                      ≥0.6 Questionable · ≥0.5 Poor · <0.5 Unacceptable
-```
+**Drivers.** `CORREL`, across respondents, of each dimension's experience score with the respondent's overall experience score: |r| ≥ 0.7 strong, ≥ 0.5 moderate, ≥ 0.3 weak.
 
-### Driver Analysis
-```
-r = CORREL(Dimension_Experience, Overall_Experience)
+### Results on the sample data
 
-  |r| ≥ 0.7  Strong driver
-  |r| ≥ 0.5  Moderate driver
-  |r| ≥ 0.3  Weak driver
-  |r| < 0.3  Negligible
-```
+| Output | Value |
+|---|---|
+| Overall Experience Index | 59.7 |
+| Retention Risk | 23.4 (Low) |
+| Turnover index | 22.8% (Low); respondents range 6%–41% |
+| Largest gap | Rewards & Growth (2.83) |
+| Cronbach's alpha | 0.67–0.84 (one Questionable, three Acceptable, two Good) |
+| Strongest driver | Team Collaboration (r = 0.57) |
 
----
+## Regenerating the workbook
 
-## Design System
-
-### Color Palette
-
-| Token | Hex | Usage |
-|-------|-----|-------|
-| Navy | `#1F4E79` | Headers, titles, primary brand |
-| Blue | `#2E75B6` | Secondary headers, tab accents |
-| Green | `#00B050` | Healthy gaps, low risk, positive indicators |
-| Amber | `#FFC000` | Watch gaps, moderate risk, caution |
-| Orange | `#ED7D31` | Concern gaps, high risk, urgent attention |
-| Red | `#C00000` | High risk gaps, critical alerts, danger |
-| Teal | `#00B0F0` | Engagement score KPI |
-| Purple | `#7030A0` | Reliability Analysis tab |
-
-### Typography
-- **Titles**: Calibri Bold 16pt, White on Navy
-- **Headers**: Calibri Bold 10pt, White on Navy
-- **Data**: Calibri 10pt, Dark Gray
-- **KPIs**: Calibri Bold 22pt, White on color
-- **Labels**: Calibri 9pt, muted
-
-### Conditional Formatting Rules
-- **Dimension Classifications**: Green/Amber/Orange/Red CellIs rules
-- **Heat Map**: ColorScale (0=Green → 1.5=Amber → 3.5=Red)
-- **Cronbach's Alpha**: ColorScale (0.5=Red → 0.7=Amber → 0.95=Green)
-- **Turnover Probability**: ColorScale (0=Green → 0.4=Amber → 0.8=Red)
-- **Risk Levels**: CellIs rules for each classification tier
-
----
-
-## Quality Assurance
-
-- **Reproducible:** `generate_workbook.py` rebuilds the workbook from scratch with a fixed random seed; regenerating produces the committed file cell for cell.
-- **Recalculated:** the generated workbook was recalculated in LibreOffice to check that every formula evaluates without errors and that outputs stay in range. On the 50 sample respondents: Retention Risk 24.0 (Low), Turnover Index 22.8% (Low), respondent indices 9%–41%.
-- **Structure:** 7 sheets, 30 items, 3 charts (radar, risk-matrix scatter, driver bar), Department/Location filters, 14 conditional-formatting rules, data validation (integers 1-10) on score entry.
-
----
-
-## Usage Guide
-
-### Quick Start
-1. **Download** the `.xlsx` file
-2. **Open** in Excel 2016+ or Excel for Microsoft 365 (enable content if prompted)
-3. **Replace sample data** in `Raw Data` sheet with your survey responses (columns P01-E30, scale 1-10)
-4. **Watch** the `Scoring Engine` auto-calculate all scores
-5. **Explore** the `Dashboard` for insights — use the Department/Location dropdowns to filter
-6. **Assess** reliability in the `Reliability Analysis` sheet
-7. **Identify** key drivers in the `Driver Analysis` sheet
-8. **Review** retention risk in the `Turnover Prediction` sheet
-
-### Adding Respondents
-- Enter new rows in the `Raw Data` sheet (columns A-E for demographics, F-BM for scores)
-- The `Scoring Engine` formulas support up to **500 respondents**
-- Scores are validated 1-10 via data validation rules
-
-### Regenerating from Source
 ```bash
+pip install openpyxl
 python generate_workbook.py
 ```
-Requires Python 3.8+ and openpyxl 3.1+.
 
----
+The generator builds every sheet, formula, chart, conditional format and validation rule from scratch with a fixed random seed, so the output is identical on every run. Sample respondents share a per-person level within each dimension plus item-level noise, so the reliability statistics behave like real survey data.
 
-## Reproducibility
+Outputs were verified by recalculating the generated file in LibreOffice: no formula errors, and the values above.
 
-This workbook is **100% reproducible**. The `generate_workbook.py` script generates the entire `.xlsx` from scratch using openpyxl — no manual formatting, no copy-paste, no hidden dependencies.
+## Project structure
 
-```python
-# Example: building one of the formula references
-def raw_data_col_letter(global_item_idx, is_promise=True):
-    col_idx = 6 + global_item_idx * 2 + (0 if is_promise else 1)
-    return get_column_letter(col_idx)
-```
-
-The generator handles:
-- All 7 sheet creations with proper tab colors
-- 50 sample respondents with realistic score distributions
-- Every native Excel formula with correct cell references
-- Chart creation with styled series (fill colors, markers, labels)
-- Conditional formatting rules with correct ranges
-- Data validation for score entry (1-10 integer)
-- Print settings (landscape, fit to width)
-
----
-
-## Repository Structure
-
-```
+```text
 employee-experience-gap-analysis/
-├── employee-experience-gap-analysis.xlsx    ← The workbook (239 KB)
-├── generate_workbook.py                     ← Reproducible generator (1418 lines)
-├── README.md                                ← This file
-├── LICENSE                                  ← MIT
-├── .gitignore                               ← Python + OS ignores
+├── employee-experience-gap-analysis.xlsx   The workbook
+├── generate_workbook.py                    Reproducible generator
+├── docs/screenshots/
+└── LICENSE
 ```
-
----
-
-## Technical Specifications
-
-| Attribute | Detail |
-|-----------|--------|
-| **File Format** | .xlsx (Office Open XML) |
-| **Excel Version** | 2016+ / Microsoft 365 / Excel for Mac |
-| **Formulas** | Native Excel — no VBA, no macros |
-| **Generator** | Python 3.8+ with openpyxl 3.1+ |
-| **Respondent Capacity** | 500 rows (extendable) |
-| **Sample Data** | 50 respondents, 6 departments, 5 locations |
-| **Charts** | Radar Chart (filled, 2-series) · Scatter Risk Matrix · Bar Chart |
-| **Interactive Filters** | Data validation dropdowns (Department, Location) |
-| **Conditional Formatting** | 14 rules across 4 sheets |
-| **Data Validation** | Scoring sheets: integer 1-10 |
-| **File Size** | ~239 KB |
-| **Verification** | Seeded generator; recalculated in LibreOffice |
-
----
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
-
----
-
-*Built with openpyxl and native Excel formulas.*
+MIT — see [LICENSE](LICENSE).

@@ -492,7 +492,8 @@ cell_a.font = bold_data_font
 cell_a.fill = lt_red_fill
 cell_a.border = thin_border
 cell_b = ws_score.cell(row=risk_row, column=2,
-              value=f"=(D6*0.25)+(D8*0.20)+(D10*0.20)+(D5*0.15)+(D7*0.10)+(D9*0.10)")
+              value=f"=ROUND(MIN(100,100*((MAX(0,D6)*0.25)+(MAX(0,D8)*0.20)+(MAX(0,D10)*0.20)"
+                    f"+(MAX(0,D5)*0.15)+(MAX(0,D7)*0.10)+(MAX(0,D9)*0.10))/9),1)")
 cell_b.number_format = '0.0'
 cell_b.font = Font(name='Calibri', bold=True, color=RED, size=14)
 cell_b.fill = lt_red_fill
@@ -652,15 +653,15 @@ for resp_offset in range(MAX_DATA_ROWS):
 
     ws_score.cell(row=row, column=col,
                   value=f'=IF(A{row}<>"",'
-                        f'({me_gap}*0.25)+({wc_gap}*0.20)+({rg_gap}*0.20)'
-                        f'+({jf_gap}*0.15)+({tc_gap}*0.10)+({ie_gap}*0.10),"")')
-    ws_score.cell(row=row, column=col).number_format = '0.00'
+                        f'ROUND(MIN(100,100*((MAX(0,{me_gap})*0.25)+(MAX(0,{wc_gap})*0.20)+(MAX(0,{rg_gap})*0.20)'
+                        f'+(MAX(0,{jf_gap})*0.15)+(MAX(0,{tc_gap})*0.10)+(MAX(0,{ie_gap})*0.10))/9),1),"")')
+    ws_score.cell(row=row, column=col).number_format = '0.0'
     risk_col_letter = get_column_letter(col)
     col += 1
 
     ws_score.cell(row=row, column=col,
                   value=f'=IF(A{row}<>"",'
-                        f'({risk_col_letter}{row}*0.5)+(0.3*{me_gap})+(0.2*{wc_gap}),"")')
+                        f'MIN(1,(0.5*{risk_col_letter}{row}/100)+(0.3*MAX(0,{me_gap})/9)+(0.2*MAX(0,{wc_gap})/9)),"")')
     ws_score.cell(row=row, column=col).number_format = '0.0%'
 
 data_end = b_header_row + MAX_DATA_ROWS
@@ -1311,7 +1312,8 @@ ws_turn['A1'].font = h1_font
 ws_turn.row_dimensions[1].height = 28
 
 ws_turn.merge_cells('A2:H2')
-ws_turn['A2'].value = "Model: Turnover Probability = (Retention Risk x 0.5) + (Manager Gap x 0.3) + (Culture Gap x 0.2)"
+ws_turn['A2'].value = ("Model (illustrative index, not a fitted probability): "
+                       "0.5 x Retention Risk/100 + 0.3 x Manager Gap/9 + 0.2 x Culture Gap/9, capped at 100%")
 ws_turn['A2'].font = Font(name='Calibri', italic=True, color=DARK_GRAY, size=9)
 
 agg_row = 4
@@ -1323,7 +1325,7 @@ metrics = [
     ("Retention Risk Score", "='Scoring Engine'!B12", "0.0"),
     ("Manager Gap (weight 30%)", "='Scoring Engine'!D6", "0.00"),
     ("Culture Gap (weight 20%)", "='Scoring Engine'!D8", "0.00"),
-    ("Turnover Probability", "=(B5*0.5)+(B6*0.3)+(B7*0.2)", "0.0%"),
+    ("Turnover Probability", "=MIN(1,(0.5*B5/100)+(0.3*MAX(0,B6)/9)+(0.2*MAX(0,B7)/9))", "0.0%"),
     ("Risk Classification", '=IF(B8<=0.2,"Very Low",IF(B8<=0.4,"Low",IF(B8<=0.6,"Moderate",IF(B8<=0.8,"High","Critical"))))', ""),
 ]
 
@@ -1376,7 +1378,7 @@ for resp_offset in range(NUM_RESPONDENTS):
     ws_turn.cell(row=row, column=4).number_format = '0.00'
     ws_turn.cell(row=row, column=5,
                  value=f"='Scoring Engine'!{risk_col}{se_row}")
-    ws_turn.cell(row=row, column=5).number_format = '0.00'
+    ws_turn.cell(row=row, column=5).number_format = '0.0'
     ws_turn.cell(row=row, column=6,
                  value=f"='Scoring Engine'!{turn_col}{se_row}")
     ws_turn.cell(row=row, column=6).number_format = '0.0%'
